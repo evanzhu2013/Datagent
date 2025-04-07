@@ -23,14 +23,14 @@ class DataAnalyzer:
     def preprocess_data(self):
         """数据预处理"""
         # 转换数据类型
-        numeric_cols = ['COD（mg/L）', '氨氮（mg/L）', '总磷（mg/L ）', 'pH', '流量（m3/d）']
+        numeric_cols = ['入河废污水量(万吨年)', '入河主要污染物量（吨年）', '氨氮入河量（吨年）', '总磷入河量（吨年）', '总氮入河量（吨年）']
         for col in numeric_cols:
             if col in self.data.columns:
                 self.data[col] = pd.to_numeric(self.data[col], errors='coerce')
         
         # 处理经纬度数据
-        self.data['地理位置经度'] = pd.to_numeric(self.data['地理位置经度'], errors='coerce')
-        self.data['地理位置纬度'] = pd.to_numeric(self.data['地理位置纬度'], errors='coerce')
+        self.data['经度'] = pd.to_numeric(self.data['经度'], errors='coerce')
+        self.data['纬度'] = pd.to_numeric(self.data['纬度'], errors='coerce')
         
     def basic_info(self):
         """数据基本信息分析"""
@@ -65,7 +65,7 @@ class DataAnalyzer:
     
     def outlier_analysis(self):
         """异常值分析"""
-        numeric_cols = ['COD（mg/L）', '氨氮（mg/L）', '总磷（mg/L ）', 'pH', '流量（m3/d）']
+        numeric_cols = ['入河废污水量(万吨年)', '入河主要污染物量（吨年）', '氨氮入河量（吨年）', '总磷入河量（吨年）', '总氮入河量（吨年）']
         outliers = {}
         
         # 生成箱线图
@@ -92,17 +92,17 @@ class DataAnalyzer:
     def generate_statistics(self):
         """生成统计表格"""
         # 表1: 省际分布
-        province_dist = self.data.groupby('省').size().reset_index(name='数量')
+        province_dist = self.data.groupby('省份').size().reset_index(name='数量')
         
         # 生成省际分布饼图
         plt.figure(figsize=(8, 8))
-        plt.pie(province_dist['数量'], labels=province_dist['省'], autopct='%1.1f%%')
+        plt.pie(province_dist['数量'], labels=province_dist['省份'], autopct='%1.1f%%')
         plt.title('排污口省际分布')
         plt.savefig(f'{self.images_dir}/province_dist.png')
         plt.close()
         
         # 表2: 排口类型统计
-        type_dist = self.data['排污口类型'].value_counts().reset_index()
+        type_dist = self.data['排污口类型名称'].value_counts().reset_index()
         type_dist.columns = ['类型', '数量']
         
         # 生成排口类型柱状图
@@ -115,7 +115,7 @@ class DataAnalyzer:
         plt.close()
         
         # 表3: 排放特征统计
-        feature_dist = self.data['排水特征-主要特征'].value_counts().reset_index()
+        feature_dist = self.data['污水性质'].value_counts().reset_index()
         feature_dist.columns = ['特征', '数量']
         
         # 生成排放特征饼图
@@ -126,7 +126,7 @@ class DataAnalyzer:
         plt.close()
         
         # 表4: 入河方式统计
-        discharge_dist = self.data['入河方式'].value_counts().reset_index()
+        discharge_dist = self.data['污水入河方式'].value_counts().reset_index()
         discharge_dist.columns = ['方式', '数量']
         
         return {
@@ -140,7 +140,7 @@ class DataAnalyzer:
         """生成地理分布地图"""
         try:
             # 过滤掉缺失的经纬度数据
-            map_data = self.data.dropna(subset=['地理位置经度', '地理位置纬度'])
+            map_data = self.data.dropna(subset=['经度', '纬度'])
             
             if len(map_data) == 0:
                 print("警告：没有有效的经纬度数据用于生成地图")
@@ -152,8 +152,8 @@ class DataAnalyzer:
             # 添加排污口标记
             for _, row in map_data.iterrows():
                 folium.Marker(
-                    location=[row['地理位置纬度'], row['地理位置经度']],
-                    popup=f"名称: {row['排污口名称']}<br>类型: {row['排污口类型']}<br>特征: {row['排水特征-主要特征']}"
+                    location=[row['纬度'], row['经度']],
+                    popup=f"名称: {row['入河排污口名称']}<br>类型: {row['排污口类型名称']}<br>特征: {row['污水性质']}"
                 ).add_to(m)
             
             # 保存地图
@@ -214,11 +214,11 @@ class DataAnalyzer:
             
             # 冷却水排放情况
             f.write('\n### 4.5 冷却水排放情况\n\n')
-            cooling_water = self.data[self.data['排水特征-主要特征'].str.contains('冷却水', na=False)]
+            cooling_water = self.data[self.data['污水性质'].str.contains('冷却水', na=False)]
             if not cooling_water.empty:
                 f.write(f'冷却水排放口数量: {len(cooling_water)}\n\n')
                 f.write('按省份分布:\n')
-                f.write(cooling_water['省'].value_counts().to_markdown())
+                f.write(cooling_water['省份'].value_counts().to_markdown())
             else:
                 f.write('未发现冷却水排放口\n')
             
