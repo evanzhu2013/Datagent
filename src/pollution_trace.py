@@ -5,6 +5,11 @@ import folium
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import os
+import markdown
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 
 # 设置中文字体
 plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'Microsoft YaHei']  # 优先使用系统支持的中文字体
@@ -113,6 +118,75 @@ class PollutionTracer:
         
         # 生成可视化
         self._generate_visualizations()
+        
+        # 转换为Word文档
+        self._convert_to_docx()
+    
+    def _convert_to_docx(self):
+        """将Markdown报告转换为Word文档"""
+        # 创建Word文档
+        doc = Document()
+        
+        # 设置中文字体
+        doc.styles['Normal'].font.name = 'SimHei'
+        doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), 'SimHei')
+        
+        # 添加标题
+        title = doc.add_heading('南水北调中线水源区污染源溯源分析报告', level=1)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # 读取Markdown文件
+        with open(f'{self.output_dir}/trace_report.md', 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 解析内容
+        sections = content.split('\n## ')
+        for section in sections:
+            if not section.strip():
+                continue
+                
+            # 处理标题
+            title_text = section.split('\n')[0]
+            level = 2 if title_text.startswith('#') else 3 if title_text.startswith('###') else 4
+            title = doc.add_heading(title_text.replace('#', '').strip(), level=level)
+            
+            # 处理内容
+            content = '\n'.join(section.split('\n')[1:])
+            paragraphs = content.split('\n\n')
+            
+            for para in paragraphs:
+                if para.strip():
+                    if para.startswith('|'):  # 表格
+                        self._add_table(doc, para)
+                    elif para.startswith('!'):  # 图片
+                        self._add_image(doc, para)
+                    else:  # 普通段落
+                        p = doc.add_paragraph()
+                        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                        for line in para.split('\n'):
+                            if line.startswith('- '):  # 列表项
+                                p.add_run('• ' + line[2:] + '\n')
+                            else:
+                                p.add_run(line + '\n')
+        
+        # 保存文档
+        doc.save(f'{self.output_dir}/trace_report.docx')
+    
+    def _add_table(self, doc, table_text):
+        """添加表格"""
+        rows = table_text.split('\n')
+        table = doc.add_table(rows=len(rows), cols=len(rows[0].split('|'))-2)
+        table.style = 'Table Grid'
+        
+        for i, row in enumerate(rows):
+            cells = row.split('|')[1:-1]
+            for j, cell in enumerate(cells):
+                table.cell(i, j).text = cell.strip()
+    
+    def _add_image(self, doc, image_text):
+        """添加图片"""
+        image_path = image_text.split('(')[1].split(')')[0]
+        doc.add_picture(f'{self.output_dir}/{image_path}', width=Inches(6))
     
     def _generate_visualizations(self):
         """生成可视化图表"""

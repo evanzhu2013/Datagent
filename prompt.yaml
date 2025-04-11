@@ -4,7 +4,7 @@ owner: 朱雷 算法专家
 tools: Python脚本
 rules:
   - 如非必要，使用中文
-  - 使用markdown格式
+  - 生层的报告是markdown格式，后转成PDF格式
   - 使用.gitignore文件忽略不必要的文件
 workflow:
   - name: 数据类型转换
